@@ -126,29 +126,27 @@ def audio_seconds(path):
     return float(out.strip())
 
 
-def get_clips(query, needed_seconds, workdir):
-    key = os.environ["PEXELS_API_KEY"]
+def search_videos(key, query):
     r = requests.get(
-        "https://api.pexels.com/videos/search",
-        params={"query": query, "orientation": "portrait", "per_page": 15},
-        headers={"Authorization": key}, timeout=30,
+        "https://pixabay.com/api/videos/",
+        params={"key": key, "q": query[:90], "per_page": 15, "safesearch": "true"},
+        headers=UA, timeout=30,
     ).json()
-    videos = r.get("videos", [])
+    return r.get("hits", [])
+
+
+def get_clips(query, needed_seconds, workdir):
+    key = os.environ["PEXELS_API_KEY"]  # holds your Pixabay key
+    videos = search_videos(key, query)
     if not videos:
-        r = requests.get(
-            "https://api.pexels.com/videos/search",
-            params={"query": "abstract city lights", "orientation": "portrait",
-                    "per_page": 15},
-            headers={"Authorization": key}, timeout=30,
-        ).json()
-        videos = r.get("videos", [])
+        videos = search_videos(key, "abstract city lights")
 
     clips, total = [], 0.0
     for i, v in enumerate(videos):
-        files = [f for f in v["video_files"] if f.get("height", 0) >= 1280]
-        files = sorted(files or v["video_files"], key=lambda f: f.get("height", 0))
+        vids = v["videos"]
+        url = (vids.get("large") or {}).get("url") or vids["medium"]["url"]
         raw = workdir / f"raw{i}.mp4"
-        raw.write_bytes(requests.get(files[0]["link"], timeout=120).content)
+        raw.write_bytes(requests.get(url, headers=UA, timeout=120).content)
         seg = workdir / f"seg{i}.mp4"
         length = min(6, v.get("duration", 6))
         subprocess.run(
@@ -215,7 +213,7 @@ def main():
 
     title = f"{topic}: what you need to know #Shorts"
     desc = (f"{script}\n\nSource: https://en.wikipedia.org/wiki/"
-            f"{wiki_title.replace(' ', '_')}\nStock footage: Pexels")
+            f"{wiki_title.replace(' ', '_')}\nStock footage: Pixabay")
     upload(str(final), title, desc, f"{topic},trending,explained,shorts", PRIVACY)
 
     used.append(topic)
