@@ -138,8 +138,10 @@ def search_videos(key, query):
 def get_clips(query, needed_seconds, workdir):
     key = os.environ["PEXELS_API_KEY"]  # holds your Pixabay key
     videos = search_videos(key, query)
-    if not videos:
-        videos = search_videos(key, "abstract city lights")
+    if len(videos) < 10::
+            videos = search_videos(key, query)
+    if len(videos) < 10:
+        videos += search_videos(key, "nature landscape") + search_videos(key, "city lights")
 
     clips, total = [], 0.0
     for i, v in enumerate(videos):
